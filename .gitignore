@@ -1,0 +1,54 @@
+# Python environments and tooling
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data and model artifacts
+data/
+datasets/
+checkpoints/
+artifacts/
+outputs/
+/output/
+runs/
+wandb/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+.cache/huggingface/
+huggingface/
+
+# VESSL artifacts
+.vessl/
+vessl_outputs/
+vessl_logs/
+configs/vessl/*.yaml
+!configs/vessl/*.template.yaml
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Operating system and editor files
+.DS_Store
+.idea/
+.vscode/

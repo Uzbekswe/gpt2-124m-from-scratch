@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gpt2-124m"
+version = "0.1.0"
+description = "An educational, exact reimplementation of GPT-2 Small (124M)."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+authors = [
+  { name = "gpt2-124m-from-scratch contributors" },
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+]
+
+[project.optional-dependencies]
+dev = [
+  "torch>=2.5",
+  "tiktoken>=0.8",
+  "pytest>=8.3",
+  "ruff>=0.9",
+  "jupyter>=1.1",
+  "ipykernel>=6.29",
+  "PyYAML>=6.0",
+]
+verify = [
+  "transformers>=4.46",
+]
+vessl = [
+  "vessl",
+]
+data = [
+  "datasets",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

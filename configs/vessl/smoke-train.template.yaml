@@ -1,0 +1,26 @@
+# This is a non-runnable template until every placeholder is inspected and replaced.
+name: gpt2-124m-gpu-smoke-train-template
+description: Future short GPU smoke-training template; no training script exists yet.
+tags:
+  - gpt2-124m
+  - template
+  - smoke-training
+resources:
+  cluster: REPLACE_WITH_VESSL_CLUSTER
+  preset: REPLACE_WITH_GPU_PRESET
+image: REPLACE_WITH_PYTORCH_IMAGE
+import:
+  /workspace/gpt2-124m:
+    git:
+      url: https://github.com/Uzbekswe/gpt2-124m-from-scratch
+      # Pin an immutable commit SHA for reproducibility; never use a GitHub token in this URL.
+      ref: REPLACE_WITH_GIT_COMMIT_SHA
+      credential_name: REPLACE_WITH_VESSL_GIT_CREDENTIAL_NAME
+export:
+  # Future checkpoints, metrics, samples, and logs should be written below this directory.
+  /workspace/gpt2-124m/artifacts: vessl-artifact://
+run:
+  - workdir: /workspace/gpt2-124m
+    command: |
+      # PLACEHOLDER ONLY: a GPU smoke-training script will be added in milestone 14c.
+      echo "No smoke-training command is implemented yet."

@@ -1,0 +1,24 @@
+# Replace every REPLACE_WITH_* value only after inspecting your own VESSL account.
+name: gpt2-124m-local-preflight-template
+description: Local environment inspection template; no model training is defined here.
+tags:
+  - gpt2-124m
+  - template
+  - preflight
+resources:
+  cluster: REPLACE_WITH_VESSL_CLUSTER
+  preset: REPLACE_WITH_GPU_PRESET
+image: REPLACE_WITH_PYTORCH_IMAGE
+import:
+  /workspace/gpt2-124m:
+    git:
+      url: https://github.com/Uzbekswe/gpt2-124m-from-scratch
+      # Pin an immutable commit SHA for reproducibility; never use a GitHub token in this URL.
+      ref: REPLACE_WITH_GIT_COMMIT_SHA
+      credential_name: REPLACE_WITH_VESSL_GIT_CREDENTIAL_NAME
+export:
+  # Future checkpoints, metrics, samples, and logs should be written below this directory.
+  /workspace/gpt2-124m/artifacts: vessl-artifact://
+run:
+  - workdir: /workspace/gpt2-124m
+    command: python -m gpt2_124m.preflight
