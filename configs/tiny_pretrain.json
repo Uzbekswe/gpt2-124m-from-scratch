@@ -1,0 +1,32 @@
+{
+  "output_dir": "artifacts/tiny-pretrain",
+  "seed": 1337,
+  "max_runtime_seconds": 180,
+  "max_steps": 3,
+  "batch_size": 1,
+  "sequence_length": 128,
+  "eval_every": 2,
+  "eval_batches": 1,
+  "log_every": 1,
+  "train_max_documents": 128,
+  "validation_max_documents": 4,
+  "validation_fraction": 0.005,
+  "dataset_name": "HuggingFaceFW/fineweb-edu",
+  "dataset_configuration": "sample-10BT",
+  "dataset_revision": "v1.0.0",
+  "text_field": "text",
+  "document_id_field": "id",
+  "prompt": "Once upon a time",
+  "max_new_tokens": 20,
+  "temperature": 1.0,
+  "top_k": 40,
+  "do_sample": true,
+  "device": "auto",
+  "optimizer": {
+    "learning_rate": 0.0003,
+    "weight_decay": 0.1,
+    "beta1": 0.9,
+    "beta2": 0.95,
+    "grad_clip_norm": 1.0
+  }
+}

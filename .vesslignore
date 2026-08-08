@@ -1,0 +1,33 @@
+# Local environments and repository metadata
+.venv/
+.git/
+
+# Python, notebook, and tool caches
+# VESSL's ignore syntax uses this recursive simple-directory pattern.
+__pycache__
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Data and generated training artifacts
+data/
+checkpoints/
+artifacts/
+output/
+*.pt
+*.pth
+*.bin
+*.egg-info
+
+# Credentials and local secrets
+.env
+.env.*
+.vessl/
+secrets/
+credentials/
+credentials.*
+*.secret
+*.token
+config.local.*
+*.pem
+*.key

@@ -146,13 +146,23 @@ def stream_fineweb_edu_documents(
             'Install it with `python -m pip install -e ".[data]"`. '
         ) from error
 
-    return load_dataset(
-        dataset_name,
-        name=configuration,
-        split=TRAIN_SPLIT,
-        streaming=True,
-        revision=revision,
-    )
+    def documents() -> Iterator[Mapping[str, object]]:
+        try:
+            stream = load_dataset(
+                dataset_name,
+                name=configuration,
+                split=TRAIN_SPLIT,
+                streaming=True,
+                revision=revision,
+            )
+            yield from stream
+        except Exception as error:
+            raise RuntimeError(
+                "Could not initialize or read the FineWeb-Edu stream. "
+                "Hugging Face network access is required for streamed training."
+            ) from error
+
+    return documents()
 
 
 class FineWebEduIterableDataset(IterableDataset[tuple[Tensor, Tensor]]):

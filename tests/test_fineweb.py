@@ -1,6 +1,8 @@
 """Offline tests for FineWeb-Edu split, tokenization, and continuous packing utilities."""
 
 import importlib.util
+import sys
+import types
 from dataclasses import replace
 from itertools import islice
 
@@ -210,6 +212,24 @@ def test_actual_streaming_without_datasets_dependency_has_a_clear_install_error(
 
     with pytest.raises(ImportError, match="optional data dependency"):
         stream_fineweb_edu_documents()
+
+
+def test_streaming_network_failure_has_a_clear_project_specific_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Remote initialization explains that streamed FineWeb requires Hugging Face access."""
+    fake_datasets = types.ModuleType("datasets")
+
+    def failing_load_dataset(*args: object, **kwargs: object) -> object:
+        raise OSError("synthetic network outage")
+
+    fake_datasets.load_dataset = failing_load_dataset  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "datasets", fake_datasets)
+
+    with pytest.raises(RuntimeError, match="Hugging Face network access") as error:
+        list(stream_fineweb_edu_documents())
+
+    assert isinstance(error.value.__cause__, OSError)
 
 
 def test_fineweb_iterable_dataset_does_not_open_remote_data_until_iteration() -> None:

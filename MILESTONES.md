@@ -25,6 +25,9 @@
     - [ ] Optional online official-weight verification (requires the `verify` dependency)
 14a. [x] VESSL Cloud preflight and run-configuration scaffolding
 14b. [x] FineWeb-Edu streaming, tokenization, packing, and validation split
-14c. [ ] **Next:** VESSL GPU smoke training run
+14c. [x] VESSL GPU smoke training run
 14d. [ ] Main VESSL pretraining run, artifacts, and metrics
-15. [ ] Portfolio documentation, original charts, demo, and model card
+15a. [x] Tiny cost-capped pretraining configuration, artifacts, and local verification
+15a.2 [x] Bounded tiny-training timeout and streamed-data failure safety
+15b. [ ] **Next:** One cost-capped VESSL Cloud tiny pretraining job
+15c. [ ] Portfolio documentation, original charts, demo, and model card

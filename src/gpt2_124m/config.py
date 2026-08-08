@@ -1,6 +1,6 @@
 """Validated configuration blueprints for GPT-2."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import isfinite
 from numbers import Real
 
@@ -112,6 +112,101 @@ class LocalLoopConfig:
             or self.eval_batches <= 0
         ):
             raise ValueError("eval_batches must be a positive integer or None.")
+
+
+@dataclass(frozen=True, slots=True)
+class TinyPretrainingConfig:
+    """Validated, deliberately small controls for one end-to-end pretraining proof."""
+
+    output_dir: str = "artifacts/tiny-pretrain"
+    seed: int = 1_337
+    max_runtime_seconds: int | None = 180
+    max_steps: int = 3
+    batch_size: int = 1
+    sequence_length: int = 128
+    eval_every: int = 2
+    eval_batches: int = 1
+    log_every: int = 1
+    train_max_documents: int | None = 128
+    validation_max_documents: int | None = 4
+    validation_fraction: float = 0.005
+    dataset_name: str = "HuggingFaceFW/fineweb-edu"
+    dataset_configuration: str = "sample-10BT"
+    dataset_revision: str = "v1.0.0"
+    text_field: str = "text"
+    document_id_field: str = "id"
+    prompt: str = "Once upon a time"
+    max_new_tokens: int = 20
+    temperature: float = 1.0
+    top_k: int | None = 40
+    do_sample: bool = True
+    device: str = "auto"
+    optimizer: TrainingConfig = field(default_factory=TrainingConfig)
+
+    def __post_init__(self) -> None:
+        """Reject unsafe tiny-run values before a model or remote stream is created."""
+        if not isinstance(self.output_dir, str) or not self.output_dir:
+            raise ValueError("output_dir must be a non-empty string.")
+        if isinstance(self.seed, bool) or not isinstance(self.seed, int):
+            raise ValueError("seed must be an integer.")
+        for name, value in {
+            "max_steps": self.max_steps,
+            "batch_size": self.batch_size,
+            "sequence_length": self.sequence_length,
+            "eval_every": self.eval_every,
+            "eval_batches": self.eval_batches,
+            "log_every": self.log_every,
+            "max_new_tokens": self.max_new_tokens,
+        }.items():
+            if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+                raise ValueError(f"{name} must be a positive integer; got {value!r}.")
+        if self.max_runtime_seconds is not None and (
+            isinstance(self.max_runtime_seconds, bool)
+            or not isinstance(self.max_runtime_seconds, int)
+            or self.max_runtime_seconds <= 0
+        ):
+            raise ValueError("max_runtime_seconds must be a positive integer or None.")
+        for name, value in {
+            "train_max_documents": self.train_max_documents,
+            "validation_max_documents": self.validation_max_documents,
+        }.items():
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, int) or value <= 0
+            ):
+                raise ValueError(f"{name} must be a positive integer or None.")
+        if (
+            isinstance(self.validation_fraction, bool)
+            or not isinstance(self.validation_fraction, Real)
+            or not isfinite(self.validation_fraction)
+            or not 0.0 <= self.validation_fraction < 1.0
+        ):
+            raise ValueError("validation_fraction must be a finite number in [0.0, 1.0).")
+        if (
+            isinstance(self.temperature, bool)
+            or not isinstance(self.temperature, Real)
+            or not isfinite(self.temperature)
+            or self.temperature <= 0.0
+        ):
+            raise ValueError("temperature must be a positive finite number.")
+        if self.top_k is not None and (
+            isinstance(self.top_k, bool) or not isinstance(self.top_k, int) or self.top_k <= 0
+        ):
+            raise ValueError("top_k must be a positive integer or None.")
+        if not isinstance(self.do_sample, bool):
+            raise ValueError("do_sample must be a boolean.")
+        for name, value in {
+            "dataset_name": self.dataset_name,
+            "dataset_configuration": self.dataset_configuration,
+            "dataset_revision": self.dataset_revision,
+            "text_field": self.text_field,
+            "document_id_field": self.document_id_field,
+            "prompt": self.prompt,
+            "device": self.device,
+        }.items():
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"{name} must be a non-empty string.")
+        if not isinstance(self.optimizer, TrainingConfig):
+            raise TypeError("optimizer must be a TrainingConfig.")
 
 
 # Test-only configuration that keeps future unit tests fast on a small CPU workload.

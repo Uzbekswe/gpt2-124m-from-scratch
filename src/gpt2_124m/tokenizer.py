@@ -1,8 +1,10 @@
 """Thin wrapper around tiktoken's official GPT-2 encoding."""
 
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
-import tiktoken
+if TYPE_CHECKING:
+    import tiktoken
 
 END_OF_TEXT_TOKEN = "<|endoftext|>"
 
@@ -11,10 +13,17 @@ class GPT2Tokenizer:
     """Encode and decode text with the GPT-2-compatible tiktoken vocabulary."""
 
     def __init__(self) -> None:
+        try:
+            import tiktoken
+        except ImportError as error:
+            raise ImportError(
+                "GPT-2 tokenization requires tiktoken. "
+                'Install it with `python -m pip install -e ".[dev]"` or `.[train]`. '
+            ) from error
         self._encoding = tiktoken.get_encoding("gpt2")
 
     @property
-    def encoding(self) -> tiktoken.Encoding:
+    def encoding(self) -> "tiktoken.Encoding":
         """Return the underlying official GPT-2 encoding."""
         return self._encoding
 

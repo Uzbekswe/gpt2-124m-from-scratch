@@ -7,12 +7,13 @@ name = "gpt2-124m"
 version = "0.1.0"
 description = "An educational, exact reimplementation of GPT-2 Small (124M)."
 readme = "README.md"
-requires-python = ">=3.11,<3.12"
+requires-python = ">=3.10,<3.12"
 authors = [
   { name = "gpt2-124m-from-scratch contributors" },
 ]
 classifiers = [
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
 ]
 
@@ -35,6 +36,10 @@ vessl = [
 data = [
   "datasets",
 ]
+train = [
+  "tiktoken>=0.8",
+  "datasets>=3.0",
+]
 
 [tool.setuptools]
 package-dir = { "" = "src" }
@@ -47,7 +52,7 @@ testpaths = ["tests"]
 addopts = "-ra"
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py310"
 line-length = 100
 
 [tool.ruff.lint]

@@ -1,67 +1,53 @@
-# VESSL setup for a future GPT-2 run
+# VESSL Cloud setup and future tiny-training plan
 
-This milestone creates local templates only. It does not configure the VESSL CLI, access
-your VESSL account, or launch cloud compute.
+This repository uses modern VESSL Cloud and the `vesslctl` CLI. It does not use the legacy
+`vessl` CLI, legacy projects/experiments/runs, or run YAML files.
 
-## Before any future run
+## Local development and Cloud images
 
-1. Sign in at <https://cloud.vessl.ai/>.
-2. Configure the CLI locally, outside this repository:
+The project supports Python 3.10 and 3.11. Develop locally with Python 3.11. Before any
+Cloud job, inspect the selected image's Python and PyTorch versions and run the local test
+suite.
 
-   ```bash
-   vessl configure
-   ```
+## Modern Cloud workflow
 
-3. Verify the selected organization and project:
+1. Authenticate outside the repository with `vesslctl auth login`.
+2. Confirm scope with `vesslctl auth status`, `vesslctl org list`, `vesslctl team list`, and
+   `vesslctl config show`.
+3. Inspect available resources with `vesslctl billing show`, `vesslctl cluster list`, and
+   `vesslctl resource-spec list`.
+4. Create dedicated object volumes only after approval. Upload a filtered local source volume
+   with `vesslctl volume upload`, then mount it into a job with `--object-volume`.
+5. Submit a job only after reviewing its exact `vesslctl job create` command and receiving
+   explicit approval.
 
-   ```bash
-   vessl whoami
-   vessl configure list
-   ```
+Credentials remain in the VESSL CLI configuration outside this repository. Never place cloud
+tokens, GitHub tokens, or other credentials in source files, JSON configuration, volumes, or
+documentation examples.
 
-4. Discover the resources actually available to your account:
+## Future tiny-training job plan — not submitted
 
-   ```bash
-   vessl cluster list
-   vessl resource list
-   vessl image list
-   ```
+Milestone 15a supplies `scripts/tiny_pretrain.py` and `configs/tiny_pretrain.json`. A later,
+explicitly approved Milestone 15b job will mount a filtered source volume at
+`/workspace/gpt2-124m` and a separate output volume at `/output`. It will install the optional
+`train` dependencies, then run a fixed small step budget:
 
-5. Inspect and fill the templates in `configs/vessl/` using only values returned by your
-   own VESSL account.
-6. Launch a run only after explicit approval:
+```sh
+set -eu
+python -m pip install --timeout 30 --retries 1 --no-build-isolation -e ".[train]"
+python scripts/tiny_pretrain.py \
+  --config configs/tiny_pretrain.json \
+  --output-dir /output/tiny-pretrain-15b \
+  --max-runtime-seconds 180
+```
 
-   ```bash
-   vessl run create -f PATH_TO_YAML
-   ```
+The expected persistent artifacts are `/output/tiny-pretrain-15b/training_config.json`,
+`/output/tiny-pretrain-15b/metrics.jsonl`, `/output/tiny-pretrain-15b/checkpoint_final.pt`,
+`/output/tiny-pretrain-15b/generated_sample.txt`, and
+`/output/tiny-pretrain-15b/training_summary.json`. This plan is intentionally not a submitted
+job and must be reviewed again for its current resource price, maximum runtime, and data limits
+before launch.
 
-## Credentials and private Git access
-
-VESSL credentials live outside this Git repository. Do not add organization names,
-project names, credential names, access keys, or tokens to tracked files.
-
-Because this GitHub repository is private, create or select the required VESSL Git
-credential/integration in the VESSL cloud console, then put only its local VESSL
-credential name into the template's `credential_name` placeholder. The repository URL
-must remain a normal HTTPS URL without embedded credentials.
-
-Never place a GitHub personal access token in YAML, Python code, committed `.env` files,
-or documentation examples. The repository's `.gitignore` excludes local `.env` files and
-VESSL output directories, but an ignored secret should still never be intentionally added
-to project source files.
-
-## Reproducible run templates
-
-Each template imports this private repository into `/workspace/gpt2-124m` and uses a
-`REPLACE_WITH_GIT_COMMIT_SHA` placeholder. Replace it with an immutable commit SHA, not a
-branch name, so a future run can be traced to the exact source version that created its
-artifacts.
-
-The `export` mapping reserves `/workspace/gpt2-124m/artifacts` for future checkpoints,
-metrics, generated samples, and logs. Its `vessl-artifact://` destination intentionally
-contains no organization or project identifier; fill any account-specific export target
-only after reviewing your VESSL account and receiving approval.
-
-VESSL run YAML groups run metadata, resources, image, repository import, artifact export,
-and commands outside the model implementation. See the official [Run YAML
-reference](https://docs.vessl.ai/reference/yaml/run-yaml) for current field details.
+The Python deadline is cooperative: it stops at safe checkpoints before or after model work and
+writes a `timed_out` summary. A blocked Hugging Face network operation cannot be preempted by
+Python safely, but its failure is reported with the original exception as context.
