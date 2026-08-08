@@ -9,7 +9,7 @@ from pathlib import Path
 
 import torch
 from torch import Tensor
-from torch.utils.data import DataLoader, IterableDataset
+from torch.utils.data import IterableDataset
 
 from gpt2_124m.checkpoint import save_checkpoint
 from gpt2_124m.config import GPT2Config, LocalLoopConfig, TinyPretrainingConfig
@@ -95,12 +95,41 @@ class _TruncatedSequenceDataset(IterableDataset[tuple[Tensor, Tensor]]):
             yield input_ids[: self.sequence_length], target_ids[: self.sequence_length]
 
 
+class _BatchedIterable(Iterable[tuple[Tensor, Tensor]]):
+    """Batch a stream in-process and close its iterator when a fixed-step run stops early."""
+
+    def __init__(self, source: Iterable[tuple[Tensor, Tensor]], *, batch_size: int) -> None:
+        self.source = source
+        self.batch_size = batch_size
+
+    def __iter__(self) -> Iterator[tuple[Tensor, Tensor]]:
+        iterator = iter(self.source)
+        input_batch: list[Tensor] = []
+        target_batch: list[Tensor] = []
+        try:
+            for input_ids, target_ids in iterator:
+                input_batch.append(input_ids)
+                target_batch.append(target_ids)
+                if len(input_batch) == self.batch_size:
+                    yield torch.stack(input_batch), torch.stack(target_batch)
+                    input_batch.clear()
+                    target_batch.clear()
+            if input_batch:
+                yield torch.stack(input_batch), torch.stack(target_batch)
+        finally:
+            _close_if_possible(iterator)
+
+
 def build_fineweb_tiny_dataloaders(
     config: TinyPretrainingConfig,
     *,
     model_config: GPT2Config = GPT2Config(),
-) -> tuple[DataLoader[tuple[Tensor, Tensor]], DataLoader[tuple[Tensor, Tensor]], TokenizerLike]:
-    """Build lazy FineWeb-Edu loaders without opening the remote stream until iteration."""
+) -> tuple[
+    Iterable[tuple[Tensor, Tensor]],
+    Iterable[tuple[Tensor, Tensor]],
+    TokenizerLike,
+]:
+    """Build closable lazy FineWeb-Edu batch streams without opening remote data yet."""
     _validate_sequence_length(config.sequence_length, model_config)
     try:
         tokenizer: TokenizerLike = GPT2Tokenizer()
@@ -131,15 +160,13 @@ def build_fineweb_tiny_dataloaders(
         **dataset_kwargs,
     )
     return (
-        DataLoader(
+        _BatchedIterable(
             _TruncatedSequenceDataset(train_dataset, sequence_length=config.sequence_length),
             batch_size=config.batch_size,
-            num_workers=0,
         ),
-        DataLoader(
+        _BatchedIterable(
             _TruncatedSequenceDataset(validation_dataset, sequence_length=config.sequence_length),
             batch_size=config.batch_size,
-            num_workers=0,
         ),
         tokenizer,
     )
@@ -219,6 +246,7 @@ def run_tiny_pretraining(
     reason: str | None = None
     timeout_error: TinyTrainingDeadlineExceeded | None = None
     checkpoint_error: str | None = None
+    train_iterator: Iterator[tuple[Tensor, Tensor]] | None = None
 
     try:
         deadline.check("model initialization")
@@ -301,6 +329,7 @@ def run_tiny_pretraining(
         reason = f"{type(error).__name__}: {error}"
         raise
     finally:
+        _close_if_possible(train_iterator)
         should_save_partial_checkpoint = (
             model is not None
             and optimizer is not None
@@ -382,6 +411,15 @@ def _next_batch(
             return next(iterator), iterator
         except StopIteration as error:
             raise ValueError(f"{name} must provide at least one batch.") from error
+
+
+def _close_if_possible(resource: object | None) -> None:
+    """Close early-stopped generator stacks before native-library interpreter teardown."""
+    if resource is None:
+        return
+    close = getattr(resource, "close", None)
+    if callable(close):
+        close()
 
 
 def _write_initialization_failure_summary(

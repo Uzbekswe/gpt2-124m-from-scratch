@@ -37,8 +37,9 @@ data = [
   "datasets",
 ]
 train = [
-  "tiktoken>=0.8",
-  "datasets>=3.0",
+  "tiktoken==0.13.0",
+  "datasets==5.0.1",
+  "pyarrow==25.0.0",
 ]
 
 [tool.setuptools]

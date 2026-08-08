@@ -54,6 +54,18 @@ writes `training_config.json`, `metrics.jsonl`, `checkpoint_final.pt`,
 or `timed_out`, with its reason and completed optimizer steps. FineWeb-Edu is streamed only when
 the command starts; no dataset files are committed to Git.
 
+### VESSL 15b shutdown note
+
+The first approved A100 tiny run completed all three updates and wrote every artifact, then
+aborted during Python interpreter finalization with `PyGILState_Release`. Its logs identified a
+Hugging Face `datasets` streaming process with Arrow/network extensions loaded, but did not
+contain a native backtrace that names one faulty binary. The tiny path now closes bounded stream
+iterators before finalization and pins the Cloud streaming stack in
+`configs/requirements/tiny-pretrain-cloud.txt`. The future, separately approved verification
+command also passes `--force-clean-exit`: only after a completed result and closed artifacts, it
+exits the single-purpose batch process without running the known-problematic interpreter
+finalizers.
+
 ## Official GPT-2 compatibility mode
 
 Compatibility mode imports weights from `openai-community/gpt2` into this project's

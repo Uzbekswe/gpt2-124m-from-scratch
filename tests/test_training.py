@@ -29,6 +29,27 @@ class TinyLogitModel(nn.Module):
         return self.logits_by_marker[input_ids[:, 0]]
 
 
+class ClosableBatchIterator:
+    """One-batch iterator that records whether a bounded evaluation closed it."""
+
+    def __init__(self, batch: tuple[Tensor, Tensor]) -> None:
+        self.batch = batch
+        self.returned_batch = False
+        self.closed = False
+
+    def __iter__(self) -> "ClosableBatchIterator":
+        return self
+
+    def __next__(self) -> tuple[Tensor, Tensor]:
+        if self.returned_batch:
+            raise StopIteration
+        self.returned_batch = True
+        return self.batch
+
+    def close(self) -> None:
+        self.closed = True
+
+
 def test_language_model_loss_matches_pytorch_cross_entropy() -> None:
     """The utility flattens batch and sequence dimensions exactly as PyTorch expects."""
     logits = torch.tensor(
@@ -150,6 +171,16 @@ def test_evaluate_loss_preserves_a_model_that_started_in_eval_mode() -> None:
     evaluate_loss(model, batches, device="cpu")
 
     assert not model.training
+
+
+def test_evaluate_loss_closes_an_early_stopped_iterator() -> None:
+    """Bounded streamed evaluation releases its source before interpreter shutdown."""
+    model = TinyLogitModel()
+    iterator = ClosableBatchIterator((torch.tensor([[0, 0]]), torch.tensor([[0, 1]])))
+
+    evaluate_loss(model, iterator, device="cpu", max_batches=1)
+
+    assert iterator.closed
 
 
 @pytest.mark.parametrize("max_batches", [0, -1, True, "1"])

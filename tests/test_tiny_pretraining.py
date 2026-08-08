@@ -26,6 +26,20 @@ class FakeTokenizer:
         return " ".join(str(token_id) for token_id in token_ids)
 
 
+class ClosingBatchLoader:
+    """Re-iterable batch source used to verify fixed-step cleanup of live streams."""
+
+    def __init__(self, batches: list[tuple[torch.Tensor, torch.Tensor]]) -> None:
+        self.batches = batches
+        self.closed_iterators = 0
+
+    def __iter__(self):  # type: ignore[no-untyped-def]
+        try:
+            yield from self.batches
+        finally:
+            self.closed_iterators += 1
+
+
 def _batch(offset: int) -> tuple[torch.Tensor, torch.Tensor]:
     input_ids = torch.tensor([[offset, offset + 1, offset + 2, offset + 3]], dtype=torch.long)
     return input_ids, input_ids + 1
@@ -113,6 +127,23 @@ def test_tiny_pretraining_checkpoint_can_be_loaded(tmp_path: Path) -> None:
 
     assert restored_state.completed_step == 2
     assert restored_state.training_config == _config(tmp_path).optimizer
+
+
+def test_tiny_pretraining_closes_fixed_step_train_and_validation_iterators(tmp_path: Path) -> None:
+    """The Cloud path releases bounded source generators before its Python process exits."""
+    train_loader = ClosingBatchLoader([_batch(1), _batch(9)])
+    validation_loader = ClosingBatchLoader([_batch(17)])
+
+    run_tiny_pretraining(
+        _config(tmp_path),
+        train_loader=train_loader,
+        validation_loader=validation_loader,
+        tokenizer=FakeTokenizer(),
+        model_config=GPT2_DEBUG_CONFIG,
+    )
+
+    assert train_loader.closed_iterators >= 2  # Initial loss evaluation and training iterator.
+    assert validation_loader.closed_iterators == 2  # One evaluation per configured step.
 
 
 @pytest.mark.parametrize(

@@ -25,29 +25,67 @@ Credentials remain in the VESSL CLI configuration outside this repository. Never
 tokens, GitHub tokens, or other credentials in source files, JSON configuration, volumes, or
 documentation examples.
 
-## Future tiny-training job plan — not submitted
+## Milestone 15b outcome and one planned clean-exit verification job
 
-Milestone 15a supplies `scripts/tiny_pretrain.py` and `configs/tiny_pretrain.json`. A later,
-explicitly approved Milestone 15b job will mount a filtered source volume at
-`/workspace/gpt2-124m` and a separate output volume at `/output`. It will install the optional
-`train` dependencies, then run a fixed small step budget:
+The approved Milestone 15b A100 job `job-5lgnifd5tpbp` completed all three optimizer updates and
+exported every expected artifact. At interpreter shutdown it then raised
+`Fatal Python error: PyGILState_Release`; the Cloud job was terminated to stop billing. The log
+shows `datasets==5.0.1`, `pyarrow==25.0.0`, `hf-xet==1.6.0`, `aiohttp==3.14.3`, and related native
+extensions, but has no native backtrace that can identify one responsible binary. Do not claim a
+specific library as the root cause.
+
+The likely failure boundary is the bounded Hugging Face Parquet stream being finalized alongside
+Arrow/network worker resources. The project now closes every early-stopped stream iterator before
+interpreter teardown, removes the tiny run's unnecessary DataLoader wrapper, and constrains the
+direct Cloud streaming stack with `configs/requirements/tiny-pretrain-cloud.txt`.
+
+The following is a **not submitted** single-job verification plan. It must be reviewed and
+explicitly approved again before use. It mounts a filtered source volume at
+`/workspace/gpt2-124m` and a separate output volume at `/output`, installs the pinned optional
+training dependencies, and keeps the fixed three-step workload:
 
 ```sh
 set -eu
-python -m pip install --timeout 30 --retries 1 --no-build-isolation -e ".[train]"
+python -m pip install --timeout 30 --retries 1 --no-build-isolation \
+  -c configs/requirements/tiny-pretrain-cloud.txt -e ".[train]"
 python scripts/tiny_pretrain.py \
   --config configs/tiny_pretrain.json \
-  --output-dir /output/tiny-pretrain-15b \
-  --max-runtime-seconds 180
+  --output-dir /output/tiny-pretrain-15c-clean-exit \
+  --max-runtime-seconds 180 \
+  --force-clean-exit
 ```
 
-The expected persistent artifacts are `/output/tiny-pretrain-15b/training_config.json`,
-`/output/tiny-pretrain-15b/metrics.jsonl`, `/output/tiny-pretrain-15b/checkpoint_final.pt`,
-`/output/tiny-pretrain-15b/generated_sample.txt`, and
-`/output/tiny-pretrain-15b/training_summary.json`. This plan is intentionally not a submitted
-job and must be reviewed again for its current resource price, maximum runtime, and data limits
-before launch.
+The expected persistent artifacts are `/output/tiny-pretrain-15c-clean-exit/training_config.json`,
+`/output/tiny-pretrain-15c-clean-exit/metrics.jsonl`,
+`/output/tiny-pretrain-15c-clean-exit/checkpoint_final.pt`,
+`/output/tiny-pretrain-15c-clean-exit/generated_sample.txt`, and
+`/output/tiny-pretrain-15c-clean-exit/training_summary.json`. This plan is intentionally not a
+submitted job and must be reviewed again for its current resource price, maximum runtime, and
+data limits before launch.
+
+Using the existing approved volumes and pinned A100 image, the exact **not submitted**
+verification command is:
+
+```sh
+vesslctl job create \
+  --name gpt2-124m-tiny-pretrain-15c-clean-exit \
+  --resource-spec resourcespec-a100x1 \
+  --image pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime@sha256:417bd75df6365104c283ea4c1651fb3530d9eb5a4c2fafa51943cff2a94e6385 \
+  --object-volume objvol-ijx6cejodf6u:/workspace/gpt2-124m \
+  --object-volume objvol-5rnmxoovl4hz:/output \
+  --working-dir /workspace/gpt2-124m \
+  --tag gpt2-124m \
+  --tag tiny-pretrain \
+  --tag milestone-15c \
+  --cmd 'set -eu; python -m pip install --timeout 30 --retries 1 --no-build-isolation -c configs/requirements/tiny-pretrain-cloud.txt -e ".[train]"; python scripts/tiny_pretrain.py --config configs/tiny_pretrain.json --output-dir /output/tiny-pretrain-15c-clean-exit --max-runtime-seconds 180 --force-clean-exit'
+```
+
+Before any approval of that command, refresh the source volume with the reviewed 15c commit.
+Do not submit a retry if this verification job fails.
 
 The Python deadline is cooperative: it stops at safe checkpoints before or after model work and
 writes a `timed_out` summary. A blocked Hugging Face network operation cannot be preempted by
-Python safely, but its failure is reported with the original exception as context.
+Python safely, but its failure is reported with the original exception as context. The
+`--force-clean-exit` option is only for this single-purpose Cloud batch process. It is reached
+only after success, all artifact writes have closed, and explicit stream cleanup has completed;
+it bypasses remaining Python finalizers that caused the 15b fault.

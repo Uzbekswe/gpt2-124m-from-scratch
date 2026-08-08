@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import os
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -68,6 +69,14 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--beta1", type=float)
     parser.add_argument("--beta2", type=float)
     parser.add_argument("--grad-clip-norm", type=float)
+    parser.add_argument(
+        "--force-clean-exit",
+        action="store_true",
+        help=(
+            "after a completed batch run, bypass Python interpreter finalizers only after all "
+            "artifacts have been written and closed"
+        ),
+    )
     sampling_group = parser.add_mutually_exclusive_group()
     sampling_group.add_argument("--do-sample", action="store_true", default=None)
     sampling_group.add_argument("--greedy", action="store_false", dest="do_sample")
@@ -77,6 +86,11 @@ def _build_parser() -> argparse.ArgumentParser:
 def parse_config(argv: list[str] | None = None) -> TinyPretrainingConfig:
     """Merge the optional JSON config with explicit CLI overrides and validate the result."""
     args = _build_parser().parse_args(argv)
+    return _config_from_args(args)
+
+
+def _config_from_args(args: argparse.Namespace) -> TinyPretrainingConfig:
+    """Build validated runtime configuration from an already parsed CLI namespace."""
     values = _load_config(args.config)
     optimizer_values = values.pop("optimizer")
     assert isinstance(optimizer_values, dict)
@@ -91,7 +105,7 @@ def parse_config(argv: list[str] | None = None) -> TinyPretrainingConfig:
         {key: value for key, value in optimizer_overrides.items() if value is not None}
     )
     for field_name, value in vars(args).items():
-        if field_name in {"config", *optimizer_overrides} or value is None:
+        if field_name in {"config", "force_clean_exit", *optimizer_overrides} or value is None:
             continue
         values[field_name] = value
     values["optimizer"] = TrainingConfig(**optimizer_values)
@@ -100,13 +114,19 @@ def parse_config(argv: list[str] | None = None) -> TinyPretrainingConfig:
 
 def main() -> None:
     """Run the tiny pretraining proof and print the final JSON summary path."""
-    config = parse_config()
+    args = _build_parser().parse_args()
+    config = _config_from_args(args)
     try:
         result = run_fineweb_tiny_pretraining(config)
     except TinyTrainingDeadlineExceeded as error:
         print(error.summary_path)
         raise SystemExit(2) from error
-    print(result.summary_path)
+    print(result.summary_path, flush=True)
+    if args.force_clean_exit:
+        # The VESSL 15b stack exposed a native ``datasets``/Arrow shutdown failure after this
+        # success path had persisted every artifact. This opt-in batch-only escape happens only
+        # after deterministic iterator cleanup and closed writes, avoiding unsafe finalizers.
+        os._exit(0)
 
 
 if __name__ == "__main__":

@@ -147,6 +147,7 @@ def stream_fineweb_edu_documents(
         ) from error
 
     def documents() -> Iterator[Mapping[str, object]]:
+        stream: Iterable[Mapping[str, object]] | None = None
         try:
             stream = load_dataset(
                 dataset_name,
@@ -161,6 +162,10 @@ def stream_fineweb_edu_documents(
                 "Could not initialize or read the FineWeb-Edu stream. "
                 "Hugging Face network access is required for streamed training."
             ) from error
+        finally:
+            # ``datasets`` uses native Arrow and network resources while streaming. Closing the
+            # iterator here lets those resources stop before Python interpreter finalization.
+            _close_if_possible(stream)
 
     return documents()
 
@@ -226,7 +231,15 @@ class FineWebEduIterableDataset(IterableDataset[tuple[Tensor, Tensor]]):
             max_documents=self.max_documents,
             max_tokens=self.max_tokens,
         )
-        yield from pack_token_ids(token_ids, context_length=self.config.context_length)
+        packed_examples = pack_token_ids(token_ids, context_length=self.config.context_length)
+        try:
+            yield from packed_examples
+        finally:
+            # Fixed-step training stops before the remote stream is exhausted. Explicitly closing
+            # every generator runs Hugging Face/Arrow cleanup while Python is fully operational.
+            _close_if_possible(packed_examples)
+            _close_if_possible(token_ids)
+            _close_if_possible(documents)
 
     def _documents_for_current_worker(self) -> Iterable[Mapping[str, object]]:
         """Create a lazy source and shard source documents across DataLoader workers when used."""
@@ -306,3 +319,12 @@ def _required_string_field(document: Mapping[str, object], field_name: str) -> s
     if field_name == FINEWEB_EDU_DOCUMENT_ID_FIELD:
         _validate_document_id(value)
     return value
+
+
+def _close_if_possible(resource: object | None) -> None:
+    """Close an iterator/resource when it exposes the standard generator ``close`` method."""
+    if resource is None:
+        return
+    close = getattr(resource, "close", None)
+    if callable(close):
+        close()

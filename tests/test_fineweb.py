@@ -35,6 +35,23 @@ class FakeTokenizer:
         return list(self.token_ids_by_text[text])
 
 
+class ClosableDocumentIterator:
+    """Synthetic remote-source stand-in that records explicit early-stop cleanup."""
+
+    def __init__(self, documents: list[dict[str, str]]) -> None:
+        self.documents = iter(documents)
+        self.closed = False
+
+    def __iter__(self) -> "ClosableDocumentIterator":
+        return self
+
+    def __next__(self) -> dict[str, str]:
+        return next(self.documents)
+
+    def close(self) -> None:
+        self.closed = True
+
+
 def _document_id_for_split(split: str, index: int = 0) -> str:
     """Find a deterministic synthetic ID assigned to the requested rare/common split."""
     candidate_index = index
@@ -163,6 +180,24 @@ def test_train_and_validation_iterable_datasets_keep_token_streams_separate() ->
 
     assert set(train_inputs.tolist()).issubset({10, 11, 12, 13, 14, 15, 99})
     assert set(validation_inputs.tolist()).issubset({20, 21, 22, 23, 24, 25, 99})
+
+
+def test_early_stopped_dataset_iterator_closes_its_document_source() -> None:
+    """Fixed-step runs release a live streaming source rather than defer it to Python shutdown."""
+    train_id = _document_id_for_split(TRAIN_SPLIT)
+    source = ClosableDocumentIterator([{"id": train_id, "text": "train"}])
+    dataset = FineWebEduIterableDataset(
+        split=TRAIN_SPLIT,
+        config=replace(GPT2_DEBUG_CONFIG, context_length=4),
+        tokenizer=FakeTokenizer({"train": [1, 2, 3, 4]}),
+        document_source_factory=lambda: source,
+    )
+    iterator = iter(dataset)
+
+    next(iterator)
+    iterator.close()
+
+    assert source.closed
 
 
 def test_document_and_token_limits_stop_before_a_partial_document() -> None:

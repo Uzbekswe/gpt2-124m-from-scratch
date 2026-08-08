@@ -84,9 +84,10 @@ def evaluate_loss(
     original_training_state = model.training
     losses: list[float] = []
     model.eval()
+    iterator = iter(dataloader)
     try:
         with torch.inference_mode():
-            for batch_index, (input_ids, target_ids) in enumerate(dataloader):
+            for batch_index, (input_ids, target_ids) in enumerate(iterator):
                 if max_batches is not None and batch_index >= max_batches:
                     break
 
@@ -94,6 +95,7 @@ def evaluate_loss(
                 loss = compute_language_model_loss(logits, target_ids.to(device))
                 losses.append(loss.item())
     finally:
+        _close_if_possible(iterator)
         model.train(original_training_state)
 
     if not losses:
@@ -170,40 +172,52 @@ def train_model_simple(
     """Run a fixed number of local training updates with periodic read-only validation."""
     history = TrainingHistory()
     train_iterator = iter(train_loader)
-
-    for step in range(1, loop_config.max_steps + 1):
-        try:
-            batch = next(train_iterator)
-        except StopIteration:
-            train_iterator = iter(train_loader)
+    try:
+        for step in range(1, loop_config.max_steps + 1):
             try:
                 batch = next(train_iterator)
-            except StopIteration as error:
-                raise ValueError("train_loader must provide at least one batch.") from error
+            except StopIteration:
+                _close_if_possible(train_iterator)
+                train_iterator = iter(train_loader)
+                try:
+                    batch = next(train_iterator)
+                except StopIteration as error:
+                    raise ValueError("train_loader must provide at least one batch.") from error
 
-        metrics = train_step(
-            model,
-            batch,
-            optimizer,
-            device,
-            grad_clip_norm=training_config.grad_clip_norm,
-        )
-        history.train_steps.append(step)
-        history.train_losses.append(metrics.loss)
+            metrics = train_step(
+                model,
+                batch,
+                optimizer,
+                device,
+                grad_clip_norm=training_config.grad_clip_norm,
+            )
+            history.train_steps.append(step)
+            history.train_losses.append(metrics.loss)
 
-        if step % loop_config.eval_every == 0 or step == loop_config.max_steps:
-            try:
-                validation_loss = evaluate_loss(
-                    model,
-                    val_loader,
-                    device,
-                    max_batches=loop_config.eval_batches,
-                )
-            except ValueError as error:
-                if str(error) == "dataloader must provide at least one batch for evaluation.":
-                    raise ValueError("val_loader must provide at least one batch.") from error
-                raise
-            history.validation_steps.append(step)
-            history.validation_losses.append(validation_loss)
+            if step % loop_config.eval_every == 0 or step == loop_config.max_steps:
+                try:
+                    validation_loss = evaluate_loss(
+                        model,
+                        val_loader,
+                        device,
+                        max_batches=loop_config.eval_batches,
+                    )
+                except ValueError as error:
+                    if str(error) == "dataloader must provide at least one batch for evaluation.":
+                        raise ValueError("val_loader must provide at least one batch.") from error
+                    raise
+                history.validation_steps.append(step)
+                history.validation_losses.append(validation_loss)
+    finally:
+        _close_if_possible(train_iterator)
 
     return history
+
+
+def _close_if_possible(resource: object | None) -> None:
+    """Close an early-stopped iterable before interpreter shutdown when it supports ``close``."""
+    if resource is None:
+        return
+    close = getattr(resource, "close", None)
+    if callable(close):
+        close()

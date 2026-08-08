@@ -29,5 +29,10 @@
 14d. [ ] Main VESSL pretraining run, artifacts, and metrics
 15a. [x] Tiny cost-capped pretraining configuration, artifacts, and local verification
 15a.2 [x] Bounded tiny-training timeout and streamed-data failure safety
-15b. [ ] **Next:** One cost-capped VESSL Cloud tiny pretraining job
-15c. [ ] Portfolio documentation, original charts, demo, and model card
+15b. [x] One cost-capped VESSL Cloud tiny pretraining job
+    - The 3-step application completed and exported all artifacts, but the Python process hit a
+      native shutdown fault and its Cloud job was terminated to stop billing.
+15c. [ ] **Next:** Diagnose the VESSL native Python shutdown fault and verify one clean exit
+    - A single, explicitly approved verification job will use deterministic stream cleanup,
+      pinned streaming dependencies, and the batch-only clean-exit guard.
+16. [ ] Portfolio documentation, original charts, demo, and model card
