@@ -12,6 +12,10 @@ Open [README.md](../README.md). Use this introduction:
 Point to “What this project proves” to distinguish implementation, local tests, Cloud
 execution, and model quality.
 
+If a live local demonstration is useful, run `python scripts/local_demo.py` first. It uses the
+small debug configuration and synthetic token IDs so it is fast, deterministic, and clearly
+separate from the 124M/A100 evidence.
+
 ## 0:45–2:15 — Walk through the architecture
 
 Show the README Mermaid diagram, then open these files:
@@ -73,9 +77,9 @@ does not make those weights an independently trained result.
 Open the [Milestone 15c experiment report](experiments/15c-vessl-a100-tiny-pretraining.md).
 Explain the two Cloud validation levels:
 
-- smoke job `job-b7sx700lxrx3`: exact parameter count, finite loss and gradients, artifact;
-- clean tiny-training job `job-nri2sb9n1w1i`: three optimizer steps, validation,
-  checkpoint, sample, summary, and a succeeded Cloud state on an A100-SXM4-80GB.
+- a smoke job: exact parameter count, finite loss and gradients, and an exported artifact;
+- a clean tiny-training job: three optimizer steps, validation, checkpoint, sample, summary,
+  and a succeeded Cloud state on an A100-SXM4-80GB.
 
 The tiny job moved train loss from 10.9330 to 9.8814 and recorded validation loss 9.9406.
 Say immediately that three points are operational evidence, not a convergence curve or a

@@ -21,8 +21,8 @@ and does not demonstrate GPT-2-quality text.
 | Attention head size | 64 dimensions |
 | Context/vocabulary | 1,024 positions / 50,257 tokens |
 | Output weights | Tied to token embeddings |
-| Cloud scope | VESSL Cloud, `Woosong / Default` |
-| Job | `job-nri2sb9n1w1i` |
+| Cloud scope | Private VESSL Cloud scope |
+| Job | Private job identifier omitted |
 | GPU | NVIDIA A100-SXM4-80GB |
 | Container | `pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime@sha256:417bd75df6365104c283ea4c1651fb3530d9eb5a4c2fafa51943cff2a94e6385` |
 | Source revision | Git commit `22375ca9ec66a6bacfce7674d01f85b8af10f3fc` |
@@ -84,8 +84,8 @@ downloadable from this repository, or presented as a useful pretrained model.
 
 ## Failure and fix: 15b to 15c
 
-The first tiny-training job, `job-5lgnifd5tpbp`, completed all three optimizer steps and
-wrote every artifact. After application work finished, Python raised a
+The first tiny-training job completed all three optimizer steps and wrote every artifact. After
+application work finished, Python raised a
 `PyGILState_Release` fatal error during interpreter finalization, and the Cloud job had to
 be manually terminated to stop it remaining active. The available trace did not identify
 one faulty native binary, so attributing the defect specifically to `pyarrow`, `datasets`,

@@ -2,6 +2,7 @@
 
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from itertools import islice
 from math import isfinite
 from numbers import Real
 
@@ -86,11 +87,9 @@ def evaluate_loss(
     model.eval()
     iterator = iter(dataloader)
     try:
+        batches = iterator if max_batches is None else islice(iterator, max_batches)
         with torch.inference_mode():
-            for batch_index, (input_ids, target_ids) in enumerate(iterator):
-                if max_batches is not None and batch_index >= max_batches:
-                    break
-
+            for input_ids, target_ids in batches:
                 logits = model(input_ids.to(device))
                 loss = compute_language_model_loss(logits, target_ids.to(device))
                 losses.append(loss.item())

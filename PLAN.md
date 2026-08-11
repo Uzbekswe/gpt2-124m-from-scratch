@@ -1,150 +1,80 @@
-# Exact GPT-2 124M Reimplementation
+# Portfolio Scope and Project Status
 
-## Summary
+This repository is an independent educational reimplementation of GPT-2 Small (124M),
+with a deliberately honest boundary between architectural correctness, systems validation,
+and model quality.
 
-Build one model only: the original GPT-2 Small/124M architecture.
+## Portfolio thesis
 
-The repository will demonstrate two separate achievements:
+The project demonstrates two complementary skills:
 
-1. **Compatibility mode:** load official GPT-2 weights and numerically match reference outputs.
-2. **From-scratch mode:** initialize the same 124M architecture with random weights and run a genuine pretraining experiment on VESSL.
+1. rebuilding a known decoder-only Transformer in clean PyTorch modules; and
+2. connecting that implementation to data streaming, training, checkpointing, validation,
+   generation, and a bounded GPU execution path.
 
-There will be no TinyGPT, architectural modifications, or claims of inventing a new model.
+The portfolio claim is not that this project reproduced GPT-2's training or produced a useful
+language model. The three-update FineWeb-Edu run is an end-to-end systems proof.
 
-## Architecture and Repository
+## Completed scope
 
-Implement the following using PyTorch:
+### Architecture and local package
 
-- GPT-2 BPE tokenizer with 50,257 tokens.
-- Token and learned absolute positional embeddings.
-- 1,024-token context window.
-- 12 transformer blocks.
-- 768-dimensional embeddings.
-- 12 causal-attention heads.
-- LayerNorm, GELU, feed-forward network, dropout, and residual connections.
-- Query, key, value, and output projections with GPT-2-compatible biases.
-- Final LayerNorm and language-model output head.
-- Weight tying between token embeddings and output head.
-- Exactly **124,439,808 trainable parameters**.
+- GPT-2 BPE tokenization with the 50,257-token vocabulary.
+- Learned token and positional embeddings with a 1,024-token context window.
+- Twelve pre-LayerNorm Transformer blocks, twelve causal attention heads, 768-dimensional
+  embeddings, GPT-2 GELU, residual paths, and tied input/output weights.
+- Official GPT-2 tensor-name mapping, including Conv1D-to-Linear transposes.
+- Exact production parameter-count assertion: **124,439,808 trainable parameters**.
+- Cross-entropy loss, AdamW grouping, gradient clipping, local training, evaluation,
+  checkpoint save/load, RNG restoration, and greedy/temperature/top-k generation.
 
-Use:
+### Data and execution evidence
 
-```text
-src/gpt2_124m/
-├── config.py
-├── tokenizer.py
-├── data.py
-├── attention.py
-├── layers.py
-├── model.py
-├── generation.py
-├── training.py
-├── checkpoint.py
-└── gpt2_weights.py
-```
+- Lazy FineWeb-Edu streaming with pinned dataset metadata, deterministic document-ID hashing,
+  `<|endoftext|>` boundaries, and continuous sequence packing.
+- A CUDA forward/backward smoke script and a real three-update FineWeb-Edu training proof on
+  an A100, with validation, checkpointing, generation, and artifact summaries.
+- Offline unit and integration coverage for tensor shapes, causality, gradients, data behavior,
+  weight tying, checkpoint restoration, and synthetic official-weight mapping.
+- Local CPU demo, MIT license, third-party attribution, and GitHub Actions coverage for Python
+  3.10 and 3.11.
 
-Notebooks will teach and demonstrate the package; they will not contain a second copy of the implementation.
+## Explicitly not implemented
 
-## Development Phases
+These items remain outside the current portfolio claim:
 
-### 1. Model implementation
+- A long-running production pretraining study targeting one billion tokens or 40 GPU-hours.
+- Gradient accumulation to a 262,144-token effective batch.
+- BF16/FP16 mixed-precision execution, warmup, cosine learning-rate decay, and throughput
+  instrumentation for a serious training run.
+- Durable FineWeb stream-position resume. Current checkpoints resume model, optimizer, history,
+  configuration, and RNG state, but not an arbitrary remote data cursor.
+- Public `gpt2_124m.train`, `generate`, `import_weights`, and `verify_compatibility` modules.
+  The current supported entry points are the scripts documented in `README.md`.
+- A released trained checkpoint or claims about GPT-2-quality language generation.
+- Educational notebooks, loss/perplexity/throughput charts, a model card for released weights,
+  and an interactive web generation demo.
+- A side-by-side compatibility report comparing every parameter tensor and seeded sampling.
 
-Rebuild Chapters 2-4 as clean modules:
+## Evidence boundary
 
-- Tokenization and input-target construction.
-- Causal self-attention.
-- Multi-head attention.
-- Transformer blocks.
-- Complete 12-block GPT-2 model.
-- Parameter counting and tensor-shape inspection.
+The official-weight path verifies architectural compatibility by comparing mapped tensors,
+float32 logits, and deterministic greedy generation. The optional online check downloads the
+reference checkpoint; the normal test suite uses synthetic tensors and does not require it.
 
-Add a tiny debug configuration strictly for unit tests, but all published model results use the 124M configuration.
+The VESSL experiment verifies orchestration and clean artifact production. Its three updates are
+not enough to infer convergence, generalization, perplexity, throughput, or useful language
+ability.
 
-### 2. Training and generation
+## Next expansion, only with a new budget decision
 
-Rebuild Chapter 5:
+If this project is later extended beyond portfolio cleanup, the next milestone should define a
+token and cost budget first, then add mixed precision, scheduled learning rates, effective-batch
+training, regular validation, throughput/memory measurement, durable data resume, checkpoint
+retention, and a model card before publishing any weights.
 
-- Cross-entropy loss and validation loss.
-- AdamW optimizer and learning-rate scheduling.
-- Gradient accumulation and clipping.
-- Mixed-precision training.
-- Greedy, temperature, and top-k generation.
-- Checkpoint save, resume, and inference.
-- Deterministic seeds and reproducible configurations.
+## Attribution boundary
 
-Public commands:
-
-```bash
-python -m gpt2_124m.train --config configs/pretrain.yaml
-python -m gpt2_124m.generate --checkpoint CHECKPOINT --prompt "Once upon a time"
-python -m gpt2_124m.import_weights --source openai-community/gpt2
-python -m gpt2_124m.verify_compatibility
-```
-
-### 3. Official GPT-2 compatibility
-
-- Download official GPT-2 Small weights through a dedicated importer.
-- Convert/transplant the weights into the custom PyTorch classes.
-- Handle GPT-2's transposed projection matrices correctly.
-- Compare parameters and logits against a reference implementation.
-- Verify generated tokens for fixed prompts and random seeds.
-- Keep Hugging Face Transformers as an optional verification dependency—not as the implementation.
-
-The README will describe this as an independent reimplementation of GPT-2, not a new model. GPT-2 Small is documented as the 124M member of the original family: <https://huggingface.co/openai-community/gpt2>.
-
-### 4. VESSL pretraining experiment
-
-Train the exact same 124M architecture from random initialization:
-
-- Dataset: streamed `HuggingFaceFW/fineweb-edu`, `sample-10BT`.
-- Tokenizer: GPT-2 BPE.
-- Sequence length: 1,024 tokens.
-- Documents separated with `<|endoftext|>` and packed into complete sequences.
-- Validation: deterministic document-ID hash split, with 0.5% reserved.
-- Target: up to 1 billion training tokens or 40 GPU-hours, whichever comes first.
-- Hardware target: one VESSL GPU with at least 24 GB VRAM.
-- Precision: BF16 when supported, otherwise FP16.
-- Effective batch: 262,144 tokens using gradient accumulation.
-- Optimizer: AdamW with weight decay, warmup, cosine decay, and gradient clipping.
-- Save resumable checkpoints and samples at regular intervals.
-
-FineWeb-Edu provides GPT-2-tokenized sample subsets and uses the ODC-By license: <https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu>.
-
-This run proves that the complete pipeline works. It will not be described as reproducing OpenAI's original training because WebText, token count, and compute are different.
-
-## Portfolio Deliverables
-
-- Clean, tested Python package.
-- Educational notebooks covering data, attention, architecture, training, and inference.
-- Original GPT-2 architecture diagram.
-- VESSL run configuration and reproducibility guide.
-- Training and validation loss curves.
-- Perplexity, throughput, memory, and tokens-processed charts.
-- Generated samples from random initialization, intermediate checkpoints, final checkpoint, and official GPT-2.
-- Side-by-side official-weight compatibility report.
-- Minimal interactive generation demo.
-- Model card documenting dataset, compute, intended use, limitations, and licensing.
-- Clear attribution to Sebastian Raschka, OpenAI GPT-2, and FineWeb-Edu.
-- No copied charts, results, or book visuals presented as original work.
-
-## Tests and Acceptance Criteria
-
-- Causal masking prevents future-token leakage.
-- Input targets are shifted exactly one token.
-- Every module passes shape and gradient tests.
-- Weight tying shares the same underlying parameter.
-- A debug configuration can overfit a tiny batch.
-- Save/resume matches uninterrupted training.
-- Seeded generation is deterministic.
-- The production configuration reports exactly 124,439,808 parameters.
-- Imported official weights produce reference-matching logits within float32 tolerance.
-- CPU tests pass in GitHub Actions.
-- VESSL smoke training, checkpoint resume, validation, and generation all complete successfully.
-
-## Fixed Assumptions
-
-- Repository name: `gpt2-124m-from-scratch`.
-- Implementation is written fresh, with upstream code used only for study and verification.
-- Official weights demonstrate compatibility.
-- Randomly initialized weights demonstrate personal training experience.
-- The separate smarter architecture you plan later remains completely outside this repository.
+The implementation is written independently and is informed by Sebastian Raschka's *Build a
+Large Language Model (From Scratch)*. GPT-2, PyTorch, tiktoken, Transformers, and FineWeb-Edu
+retain their own licenses and attribution requirements; see `docs/ATTRIBUTION.md`.

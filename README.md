@@ -2,11 +2,10 @@
 
 This repository is a fresh PyTorch implementation of the original GPT-2 Small
 architecture. It builds the full decoder-only language model from basic PyTorch layers,
-reports exactly **124,439,808 trainable parameters**, and keeps two goals separate:
-loading official GPT-2 weights to verify architectural compatibility, and training the
-same architecture from random initialization. The included A100 experiments validate
-the end-to-end engineering path; they do not claim to reproduce GPT-2's training or
-language quality.
+reports exactly **124,439,808 trainable parameters**, and demonstrates the engineering path
+from architecture to data streaming, training, checkpointing, validation, generation, and
+GPU execution. Official GPT-2 weights are used for compatibility verification; random
+initialization is used for the separate training proof.
 
 ## What this project proves
 
@@ -20,6 +19,8 @@ language quality.
 - **Verified on an A100:** the 124M model completed a finite forward/backward smoke test
   and a separate three-update FineWeb-Edu training proof with validation, generation,
   checkpointing, and artifact persistence.
+- **Runnable locally:** a deterministic CPU demo trains the test-sized debug configuration
+  on synthetic token IDs and generates a short token sequence in a few seconds.
 - **Not claimed:** the randomly initialized model has not been pretrained long enough to
   produce useful language. The three-step run is a systems test, not a quality result.
 
@@ -83,7 +84,7 @@ src/gpt2_124m/
   tiny_pretraining.py   bounded artifact-producing training proof
   tokenizer.py          thin wrapper around tiktoken's GPT-2 encoding
   training.py           loss, evaluation, AdamW, steps, and local loop
-scripts/                local preflight, CUDA smoke, and tiny-training entry points
+scripts/                local demo, preflight, CUDA smoke, and tiny-training entry points
 configs/                tiny-run and dependency/runtime configuration
 tests/                  offline-focused unit and integration tests
 docs/                   data, VESSL, experiment, and interview documentation
@@ -109,9 +110,22 @@ python -m ruff check .
 Ordinary package imports and offline tests do not require Hugging Face `datasets`,
 Transformers, VESSL, network access, or a GPU. The full default model uses roughly 0.5 GB
 for float32 parameters alone, so the test suite uses a clearly named debug configuration
-for most behavioral checks while retaining a production parameter-count test. The latest
-Milestone 16 gate completed with **172 passed, 1 optional online test skipped**, and Ruff
-passing.
+for most behavioral checks while retaining a production parameter-count test. The local
+verification gate currently completes with **174 passed, 1 optional online test skipped**, and
+Ruff passing. GitHub Actions runs the same checks on Python 3.10 and 3.11.
+
+## Fast local demo
+
+The fastest way to see the package train and generate is the deterministic CPU demo. It uses
+`GPT2_DEBUG_CONFIG` and synthetic token IDs, so it is a smoke demonstration rather than a
+language-quality result:
+
+```bash
+python scripts/local_demo.py
+```
+
+For the exact 124M model's structural proof, use the production parameter-count test or the
+GPU smoke command below. The full model requires substantially more memory than the debug demo.
 
 ## Smoke and tiny-training commands
 
@@ -160,13 +174,13 @@ not be committed.
 
 ## VESSL Cloud evidence
 
-The Cloud work ran in the `Woosong / Default` scope on NVIDIA A100-SXM4-80GB hardware:
+The Cloud work ran in a private VESSL scope on NVIDIA A100-SXM4-80GB hardware:
 
-- Smoke job `job-b7sx700lxrx3` verified the exact parameter count plus finite loss and
-  gradients, then persisted its report.
-- Tiny-training job `job-nri2sb9n1w1i` succeeded in **1m 3s** total Cloud duration; its
-  script ran for **22.02s**, completed three optimizer updates, evaluated validation loss,
-  generated a sample, and persisted all five expected artifacts.
+- A smoke job verified the exact parameter count plus finite loss and gradients, then
+  persisted its report.
+- A clean tiny-training job succeeded in **1m 3s** total Cloud duration; its script ran for
+  **22.02s**, completed three optimizer updates, evaluated validation loss, generated a sample,
+  and persisted all five expected artifacts.
 - An earlier attempt completed its application work but exposed a native interpreter
   finalization fault. The clean verification used explicit iterator cleanup, pinned
   streaming dependencies, bounded installation/deadline controls, and a batch-only clean
@@ -191,9 +205,15 @@ is a private Cloud artifact; it is not committed or offered as a public model do
 
 For a guided walkthrough, use the [5–7 minute interview demo](docs/INTERVIEW_DEMO.md).
 
+For project history and the explicit boundary between completed work and future expansion, see
+the [portfolio scope and project status](PLAN.md). Third-party references and licenses are
+listed in [ATTRIBUTION.md](docs/ATTRIBUTION.md); this repository's code is released under the
+[MIT License](LICENSE).
+
 ## Optional future work
 
-The core architecture and end-to-end training proof are complete. Future extensions could
-add a responsibly budgeted longer pretraining run, original loss/throughput charts, a model
-card for any released checkpoint, and a small inference demo. Those would extend the
-evidence; they are not required to make the current implementation complete.
+The core architecture and end-to-end training proof are complete. Future extensions are
+deliberately separate from this cleanup: a budgeted longer pretraining run, mixed precision,
+scheduled learning rates, durable stream-position resume, original training charts, a model
+card for released weights, and an interactive inference demo. See [PLAN.md](PLAN.md) for the
+current boundary.

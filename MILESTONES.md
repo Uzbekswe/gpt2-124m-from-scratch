@@ -33,9 +33,11 @@
     - The 3-step application completed and exported all artifacts, but the Python process hit a
       native shutdown fault and its Cloud job was terminated to stop billing.
 15c. [x] Diagnose the VESSL native Python shutdown fault and verify one clean exit
-    - Job `job-nri2sb9n1w1i` succeeded after deterministic stream cleanup, pinned streaming
+    - The clean verification job succeeded after deterministic stream cleanup, pinned streaming
       dependencies, bounded runtime controls, and a batch-only clean-exit guard reached only
-      after artifacts were written successfully.
-16. [x] Portfolio documentation, experiment evidence, and interview demo
-    - Original training charts and a model card remain optional future work if a meaningful
-      checkpoint is trained and released; the 3-step systems proof is not presented as one.
+      after artifacts were written successfully. Private job identifiers are intentionally
+      omitted from the public repository.
+16. [x] Portfolio documentation, experiment evidence, local CPU demo, attribution, license, and CI
+    - Production pretraining, original training charts, notebooks, interactive generation, and a
+      model card for released weights remain explicitly deferred; the 3-step systems proof is
+      not presented as one.

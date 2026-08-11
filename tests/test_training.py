@@ -50,6 +50,22 @@ class ClosableBatchIterator:
         self.closed = True
 
 
+class CountingBatchIterator:
+    """Record exactly how many batches a bounded evaluation requests."""
+
+    def __init__(self, batches: list[tuple[Tensor, Tensor]]) -> None:
+        self.batches = iter(batches)
+        self.consumed = 0
+
+    def __iter__(self) -> "CountingBatchIterator":
+        return self
+
+    def __next__(self) -> tuple[Tensor, Tensor]:
+        batch = next(self.batches)
+        self.consumed += 1
+        return batch
+
+
 def test_language_model_loss_matches_pytorch_cross_entropy() -> None:
     """The utility flattens batch and sequence dimensions exactly as PyTorch expects."""
     logits = torch.tensor(
@@ -181,6 +197,17 @@ def test_evaluate_loss_closes_an_early_stopped_iterator() -> None:
     evaluate_loss(model, iterator, device="cpu", max_batches=1)
 
     assert iterator.closed
+
+
+def test_evaluate_loss_does_not_consume_a_batch_beyond_the_limit() -> None:
+    """A bounded stream keeps the first unevaluated batch available to its caller."""
+    model = TinyLogitModel()
+    batch = (torch.tensor([[0, 0]]), torch.tensor([[0, 1]]))
+    iterator = CountingBatchIterator([batch, batch])
+
+    evaluate_loss(model, iterator, device="cpu", max_batches=1)
+
+    assert iterator.consumed == 1
 
 
 @pytest.mark.parametrize("max_batches", [0, -1, True, "1"])

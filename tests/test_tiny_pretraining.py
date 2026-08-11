@@ -106,6 +106,30 @@ def test_tiny_pretraining_writes_metrics_summary_sample_and_checkpoint(tmp_path:
     assert Path(summary["artifact_paths"]["checkpoint"]) == result.checkpoint_path
 
 
+def test_tiny_pretraining_resets_metrics_for_a_reused_output_directory(tmp_path: Path) -> None:
+    """A rerun does not combine the new evidence with a previous run's JSONL history."""
+    config = _config(tmp_path)
+    first_result = run_tiny_pretraining(
+        config,
+        train_loader=[_batch(1), _batch(9)],
+        validation_loader=[_batch(17)],
+        tokenizer=FakeTokenizer(),
+        model_config=GPT2_DEBUG_CONFIG,
+    )
+    run_tiny_pretraining(
+        config,
+        train_loader=[_batch(1), _batch(9)],
+        validation_loader=[_batch(17)],
+        tokenizer=FakeTokenizer(),
+        model_config=GPT2_DEBUG_CONFIG,
+    )
+
+    metric_records = [
+        json.loads(line) for line in first_result.metrics_path.read_text().splitlines()
+    ]
+    assert len(metric_records) == 5
+
+
 def test_tiny_pretraining_checkpoint_can_be_loaded(tmp_path: Path) -> None:
     """The final artifact contains model and optimizer state usable by the existing loader."""
     result = run_tiny_pretraining(

@@ -1,4 +1,4 @@
-# Resolved direct and native runtime packages from VESSL job-5lgnifd5tpbp.
+# Resolved direct and native runtime packages from the VESSL tiny-pretraining verification.
 # Keep this file with the pinned PyTorch image and use it as a pip constraints file.
 aiohttp==3.14.3
 datasets==5.0.1

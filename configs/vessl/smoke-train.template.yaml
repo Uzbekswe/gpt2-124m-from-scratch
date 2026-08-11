@@ -1,6 +1,6 @@
 # This is a non-runnable template until every placeholder is inspected and replaced.
 name: gpt2-124m-gpu-smoke-train-template
-description: Future short GPU smoke-training template; no training script exists yet.
+description: One-pass GPU forward/backward smoke check for the exact GPT-2 Small model.
 tags:
   - gpt2-124m
   - template
@@ -22,5 +22,4 @@ export:
 run:
   - workdir: /workspace/gpt2-124m
     command: |
-      # PLACEHOLDER ONLY: a GPU smoke-training script will be added in milestone 14c.
-      echo "No smoke-training command is implemented yet."
+      python scripts/vessl_smoke.py --output-dir /output/smoke

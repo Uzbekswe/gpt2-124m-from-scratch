@@ -230,6 +230,8 @@ def run_tiny_pretraining(
     checkpoint_path = output_dir / "checkpoint_final.pt"
     sample_path = output_dir / "generated_sample.txt"
     summary_path = output_dir / "training_summary.json"
+    # A rerun reuses the output directory but must produce one self-consistent metric history.
+    metrics_path.write_text("", encoding="utf-8")
     _write_json(
         config_path,
         {

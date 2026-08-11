@@ -27,8 +27,8 @@ documentation examples.
 
 ## Milestone 15b outcome and one planned clean-exit verification job
 
-The approved Milestone 15b A100 job `job-5lgnifd5tpbp` completed all three optimizer updates and
-exported every expected artifact. At interpreter shutdown it then raised
+The approved Milestone 15b A100 job completed all three optimizer updates and exported every
+expected artifact. At interpreter shutdown it then raised
 `Fatal Python error: PyGILState_Release`; the Cloud job was terminated to stop billing. The log
 shows `datasets==5.0.1`, `pyarrow==25.0.0`, `hf-xet==1.6.0`, `aiohttp==3.14.3`, and related native
 extensions, but has no native backtrace that can identify one responsible binary. Do not claim a
@@ -63,16 +63,16 @@ The expected persistent artifacts are `/output/tiny-pretrain-15c-clean-exit/trai
 submitted job and must be reviewed again for its current resource price, maximum runtime, and
 data limits before launch.
 
-Using the existing approved volumes and pinned A100 image, the exact **not submitted**
-verification command is:
+Using your own approved volumes and the pinned A100 image, the **not submitted** verification
+command template is:
 
 ```sh
 vesslctl job create \
   --name gpt2-124m-tiny-pretrain-15c-clean-exit \
-  --resource-spec resourcespec-a100x1 \
+  --resource-spec REPLACE_WITH_RESOURCE_SPEC \
   --image pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime@sha256:417bd75df6365104c283ea4c1651fb3530d9eb5a4c2fafa51943cff2a94e6385 \
-  --object-volume objvol-ijx6cejodf6u:/workspace/gpt2-124m \
-  --object-volume objvol-5rnmxoovl4hz:/output \
+  --object-volume REPLACE_WITH_SOURCE_VOLUME:/workspace/gpt2-124m \
+  --object-volume REPLACE_WITH_OUTPUT_VOLUME:/output \
   --working-dir /workspace/gpt2-124m \
   --tag gpt2-124m \
   --tag tiny-pretrain \
@@ -80,7 +80,7 @@ vesslctl job create \
   --cmd 'set -eu; python -m pip install --timeout 30 --retries 1 --no-build-isolation -c configs/requirements/tiny-pretrain-cloud.txt -e ".[train]"; python scripts/tiny_pretrain.py --config configs/tiny_pretrain.json --output-dir /output/tiny-pretrain-15c-clean-exit --max-runtime-seconds 180 --force-clean-exit'
 ```
 
-Before any approval of that command, refresh the source volume with the reviewed 15c commit.
+Before any approval of that command, refresh your source volume with the reviewed 15c commit.
 Do not submit a retry if this verification job fails.
 
 The Python deadline is cooperative: it stops at safe checkpoints before or after model work and
