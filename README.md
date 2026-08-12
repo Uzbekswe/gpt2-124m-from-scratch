@@ -26,16 +26,7 @@ initialization is used for the separate training proof.
 
 ## Architecture at a glance
 
-| Property | GPT-2 Small value |
-| --- | ---: |
-| Transformer blocks | 12 |
-| Attention heads | 12 |
-| Dimensions per head | 64 |
-| Embedding dimension | 768 |
-| MLP hidden dimension | 3,072 |
-| Context length | 1,024 tokens |
-| Vocabulary | 50,257 tokens |
-| Trainable parameters | **124,439,808** |
+![GPT-2 Small architecture specification table](assets/gpt2-small-specification-table-dark.png)
 
 The output projection shares the token-embedding parameter, matching GPT-2 weight
 tying. Each block uses GPT-2's pre-LayerNorm ordering and causal attention.
